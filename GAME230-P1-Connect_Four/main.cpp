@@ -47,7 +47,7 @@ int main()
 				insertDisc();
 			}
 		}
-
+		displayBoard();
 		switch (winner) {
 		case 1:
 			cout << "Player O has won the game!" << endl;
