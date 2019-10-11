@@ -7,15 +7,16 @@ int rowSize = 7;
 int columnSize = 6;
 int winRequired = 4;
 int step = 0;
-char discType[3] = { '.', 'O', 'X' };	//[0]: empty, [1]: P1, [2]: p2
+char discType[3] = { '.', 'O', 'X' };	//[0]: empty, [1]: P1, [2]: p2/A.I.
 
 bool gameEnd = false;
-int winner = 0;							//1: P1, 2: P2, 3: Tie
+int winner = 0;							//1: P1, 2: P2/A.I., 3: Tie
 bool p1Turn = true;
 bool quitGame = false;
 
 bool setWrapMode = false;
 bool setPopMode = false;
+bool setAiMode = false;
 
 void resetGame();
 void displayBoard();
@@ -27,6 +28,9 @@ bool checkCanPop();
 void popDisc();
 void checkPopGameEnd(int popedRow);
 
+void aiInsertDisc();
+int aiCheckLineRowRate(int discRow, int discCol);
+
 int main()
 {
 	while (!quitGame) {
@@ -34,7 +38,15 @@ int main()
 
 		while (!gameEnd) {
 			displayBoard();
-			if (setPopMode && checkCanPop()) {
+			if (setAiMode && p1Turn == false) {
+				if (step == rowSize * columnSize) {
+					gameEnd = true;
+					winner = 1;
+					cout << "You win because my dumb A.I. doesn't know how to remove disc. :(" << endl;
+				} else {
+					aiInsertDisc();
+				}
+			} else if (setPopMode && checkCanPop()) {
 				if (step == rowSize * columnSize) {
 					popDisc();
 				}
@@ -89,6 +101,8 @@ void resetGame()
 	setWrapMode = ((getValidInput(1, 2) == 1) ? true : false);
 	cout << "Enable pop out mode? [1]Yes [2]No: ";
 	setPopMode = ((getValidInput(1, 2) == 1) ? true : false);
+	cout << "Wanna play with A.I.? [1]Yes [2]No: ";
+	setAiMode = ((getValidInput(1, 2) == 1) ? true : false);
 	cout << "Game start with wrap around mode " << (setWrapMode ? "ON" : "OFF") << ", pop out mode " << (setPopMode ? "ON" : "OFF") << endl;
 	cout << "Winning requirement is " << winRequired << " in a row!" << endl;
 }
@@ -158,7 +172,7 @@ void checkGameEnd(int discRow, int discCol)
 		winner = 3;
 		return;
 	}
-	if (checkLine(discRow, discCol, 'v')|| checkLine(discRow, discCol, 'h')|| checkLine(discRow, discCol, 'p')|| checkLine(discRow, discCol, 'm')) {
+	if (checkLine(discRow, discCol, 'v') || checkLine(discRow, discCol, 'h') || checkLine(discRow, discCol, 'p') || checkLine(discRow, discCol, 'm')) {
 		gameEnd = true;
 		winner = (p1Turn ? 1 : 2);
 		return;
@@ -264,7 +278,8 @@ bool checkCanPop() {
 	return false;
 }
 
-void popDisc() {
+void popDisc()
+{
 	int currentPlayer = (p1Turn ? 1 : 2);
 	int selectedRow = -1;
 	bool canPop = false;
@@ -301,4 +316,105 @@ void checkPopGameEnd(int popedRow){
 	else {
 		p1Turn = !p1Turn;
 	}
+}
+
+//A.I. stuff goes here
+void aiInsertDisc()
+{
+	bool isRowFull = true;
+	int insertedCol = -1;
+	int* rates = new int[rowSize];
+	int highestRate = -1;
+	int highestRateRow = 0;
+
+	cout << "A.I.(Player " << (p1Turn ? discType[1] : discType[2]) << ")'s turn!" << endl;
+	for (int currentRow = 0; currentRow < rowSize; currentRow++) {
+		if (board[currentRow][columnSize - 1] != 0) {
+			rates[currentRow] = -1000;
+			break;
+		}
+		for (int currentColumn = 0; currentColumn < columnSize; currentColumn++) {
+			if (board[currentRow][currentColumn] == 0) {
+				rates[currentRow] = aiCheckLineRowRate(currentRow, currentColumn);
+				break;
+			}
+		}
+	}
+	for (int i = 0; i < rowSize; i++) {
+		if (highestRate < rates[i]) {
+			highestRate = rates[i];
+			highestRateRow = i;
+		}
+	}
+	for (int i = 0; i < columnSize; i++) {
+		if (board[highestRateRow][i] == 0) {
+			board[highestRateRow][i] = 2;
+			insertedCol = i;
+			break;
+		}
+	}
+	step++;
+	checkGameEnd(highestRateRow, insertedCol);
+}
+
+int aiCheckLineRowRate(int discRow, int discCol)
+{
+	int winRates[4] = {}; //vertical, horizontal, diagonal(+), diagonal(-)
+	int loseRates[4] = {};
+	int finalWinRate = -1;
+	int finalLoseRate = -1;
+	if (!setWrapMode) {
+		for (int i = 1; i < winRequired; i++) {
+			//vertical
+			winRates[0] += (discCol - i < 0 || board[discRow][discCol - i] != 2) ? 0 : (winRequired - i);
+			loseRates[0] += (discCol - i < 0 || board[discRow][discCol - i] != 1) ? 0 : (winRequired - i);
+			winRates[0] += (discCol + i >= columnSize || board[discRow][discCol + i] != 2) ? 0 : (winRequired - i);
+			loseRates[0] += (discCol + i >= columnSize || board[discRow][discCol + i] != 1) ? 0 : (winRequired - i);
+			//horizontal
+			winRates[1] += (discRow - i < 0 || board[discRow - i][discCol] != 2) ? 0 : (winRequired - i);
+			loseRates[1] += (discRow - i < 0 || board[discRow - i][discCol] != 1) ? 0 : (winRequired - i);
+			winRates[1] += (discRow + i >= rowSize || board[discRow + i][discCol] != 2) ? 0 : (winRequired - i);
+			loseRates[1] += (discRow + i >= rowSize || board[discRow + i][discCol] != 1) ? 0 : (winRequired - i);
+			//diagonal(+)
+			winRates[2] += (discRow - i < 0 || discCol - i < 0 || board[discRow - i][discCol - i] != 2) ? 0 : (winRequired - i);
+			loseRates[2] += (discRow - i < 0 || discCol - i < 0 || board[discRow - i][discCol - i] != 1) ? 0 : (winRequired - i);
+			winRates[2] += (discRow + i >= rowSize || discCol + i > columnSize || board[discRow + i][discCol + i] != 2) ? 0 : (winRequired - i);
+			loseRates[2] += (discRow + i >= rowSize || discCol + i > columnSize || board[discRow + i][discCol + i] != 1) ? 0 : (winRequired - i);
+			//diagonal(-)
+			winRates[3] += (discRow - i < 0 || discCol + i > columnSize || board[discRow - i][discCol + i] != 2) ? 0 : (winRequired - i);
+			loseRates[3] += (discRow - i < 0 || discCol + i > columnSize || board[discRow - i][discCol + i] != 1) ? 0 : (winRequired - i);
+			winRates[3] += (discRow + i >= rowSize || discCol - i < 0 || board[discRow + i][discCol - i] != 2) ? 0 : (winRequired - i);
+			loseRates[3] += (discRow + i >= rowSize || discCol - i < 0 || board[discRow + i][discCol - i] != 1) ? 0 : (winRequired - i);
+		}
+	}
+	else {
+		for (int i = 1; i < winRequired; i++) {
+			//vertical
+			winRates[0] += (discCol - i < 0 || board[discRow][discCol - i] != 2) ? 0 : (winRequired - i);
+			loseRates[0] += (discCol - i < 0 || board[discRow][discCol - i] != 1) ? 0 : (winRequired - i);
+			winRates[0] += (discCol + i >= columnSize || board[discRow][discCol + i] != 2) ? 0 : (winRequired - i);
+			loseRates[0] += (discCol + i >= columnSize || board[discRow][discCol + i] != 1) ? 0 : (winRequired - i);
+			//horizontal
+			winRates[1] += (board[(discRow + rowSize - i) % rowSize][discCol] != 2) ? 0 : (winRequired - i);
+			loseRates[1] += (board[(discRow + rowSize - i) % rowSize][discCol] != 1) ? 0 : (winRequired - i);
+			winRates[1] += (board[(discRow + i) % rowSize][discCol] != 2) ? 0 : (winRequired - i);
+			loseRates[1] += (board[(discRow + i) % rowSize][discCol] != 1) ? 0 : (winRequired - i);
+			//diagonal(+)
+			winRates[2] += (discCol - i < 0 || board[(discRow + rowSize - i) % rowSize][discCol - i] != 2) ? 0 : (winRequired - i);
+			loseRates[2] += (discCol - i < 0 || board[(discRow + rowSize - i) % rowSize][discCol - i] != 1) ? 0 : (winRequired - i);
+			winRates[2] += (discCol + i > columnSize || board[(discRow + i) % rowSize][discCol + i] != 2) ? 0 : (winRequired - i);
+			loseRates[2] += (discCol + i > columnSize || board[(discRow + i) % rowSize][discCol + i] != 1) ? 0 : (winRequired - i);
+			//diagonal(-)
+			winRates[3] += (discCol + i > columnSize || board[(discRow + rowSize - i) % rowSize][discCol + i] != 2) ? 0 : (winRequired - i);
+			loseRates[3] += (discCol + i > columnSize || board[(discRow + rowSize - i) % rowSize][discCol + i] != 1) ? 0 : (winRequired - i);
+			winRates[3] += (discCol - i < 0 || board[(discRow + i) % rowSize][discCol - i] != 2) ? 0 : (winRequired - i);
+			loseRates[3] += (discCol - i < 0 || board[(discRow + i) % rowSize][discCol - i] != 1) ? 0 : (winRequired - i);
+		}
+	}
+	for (int i = 0; i < 4; i++) {
+		finalWinRate = (winRates[i] > finalWinRate) ? winRates[i] : finalWinRate;
+		finalLoseRate = (loseRates[i] > finalLoseRate) ? loseRates[i] : finalLoseRate;
+	}
+	cout << "Row: " << discRow << ", Win rate: " << finalWinRate << ", Lose rate: " << finalLoseRate << endl;
+	return (finalLoseRate >= finalWinRate) ? finalLoseRate : finalWinRate;
 }
