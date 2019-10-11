@@ -331,7 +331,7 @@ void aiInsertDisc()
 	for (int currentRow = 0; currentRow < rowSize; currentRow++) {
 		if (board[currentRow][columnSize - 1] != 0) {
 			rates[currentRow] = -1000;
-			break;
+			continue;
 		}
 		for (int currentColumn = 0; currentColumn < columnSize; currentColumn++) {
 			if (board[currentRow][currentColumn] == 0) {
@@ -415,6 +415,6 @@ int aiCheckLineRowRate(int discRow, int discCol)
 		finalWinRate = (winRates[i] > finalWinRate) ? winRates[i] : finalWinRate;
 		finalLoseRate = (loseRates[i] > finalLoseRate) ? loseRates[i] : finalLoseRate;
 	}
-	cout << "Row: " << discRow << ", Win rate: " << finalWinRate << ", Lose rate: " << finalLoseRate << endl;
+	//cout << "Row: " << discRow << ", Win rate: " << finalWinRate << ", Lose rate: " << finalLoseRate << endl;
 	return (finalLoseRate >= finalWinRate) ? finalLoseRate : finalWinRate;
 }
